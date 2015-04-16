@@ -1,2 +1,2 @@
 # de
-Data Engine for Dao Platform
+Data Engine of Dao Platform for Directed Graphs.
