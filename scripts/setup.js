@@ -9,15 +9,15 @@
         v_name = applicationContext.vertexCollection(graph),
         e_name = applicationContext.edgeCollection(graph);
 */
-    var g_name = "de_graph", v_name = "de_node", e_name = "de_link";
-    var existence = gm._exists(g_name) || db._exists(v_name) || db._exists(e_name);
+    var v_name = "de_node", e_name = "de_link";
+    var existence = gm._exists(graph); // || db._exists(v_name) || db._exists(e_name);
     if (existence && applicationContext.isProduction) {
-      console.warn("collections of graph '%s' already exists. Leaving it untouched.", g_name);
+      console.warn("graph '%s' already exists. Leaving it untouched.", graph);
     } else {
-      gm._create(g_name, [gm._relation(e_name, v_name, v_name)], []);
+      gm._create(graph, [gm._relation(e_name, v_name, v_name)], []);
     };
   };
 
-  createGraph("de");
+  createGraph("de_graph");
   
 }());
