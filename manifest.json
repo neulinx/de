@@ -1,0 +1,12 @@
+{
+  "name": "de",
+  "description": "Data Engine for Graph Model.",
+  "author": "Gary Hai",
+  "version": "0.0.1",
+  "license": "Apache 2",
+  "isSystem": false,
+  "contributors": [],
+  "controllers": {},
+  "setup": "scripts/setup.js",
+  "teardown": "scripts/teardown.js"
+}
