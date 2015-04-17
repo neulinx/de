@@ -8,8 +8,5 @@
   "contributors": [],
   "controllers": {},
   "setup": "scripts/setup.js",
-  "teardown": "scripts/teardown.js",
-  "graphName": "de_graph",
-  "vertexCollection": "de_node",
-  "edgeCollection": "de_link"
+  "teardown": "scripts/teardown.js"
 }
