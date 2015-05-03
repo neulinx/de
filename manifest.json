@@ -6,7 +6,9 @@
   "license": "Apache 2",
   "isSystem": false,
   "contributors": [],
-  "controllers": {},
+  "controllers": {
+    "/": "controllers/de.js"    
+  },
   "setup": "scripts/setup.js",
   "teardown": "scripts/teardown.js"
 }

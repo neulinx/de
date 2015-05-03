@@ -5,8 +5,9 @@
   var db = require("org/arangodb").db;
   var gm = require("org/arangodb/general-graph");
   var createGraph = function(graph) {
-/*    var g_name = applicationContext.graphName(graph),
-        v_name = applicationContext.vertexCollection(graph),
+    var g_name = applicationContext.collectionName("test");
+    console.warn("Connection name is '%s'", g_name);
+/*        v_name = applicationContext.vertexCollection(graph),
         e_name = applicationContext.edgeCollection(graph);
 */
     var v_name = "de_node", e_name = "de_link";
