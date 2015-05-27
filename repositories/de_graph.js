@@ -3,60 +3,70 @@
 
   var _ = require('underscore'),
       Foxx = require('org/arangodb/foxx'),
-      Db = require("org/arangodb").db;
+      Db = require("org/arangodb").db,
+      Gg = require('org/arangodb/general-graph'),
+      Model = require('models/de_graph');
+
   
   // graph with model of Nodes.
   var Graph = Foxx.Repository.extend({
-    edges: null,
-    vertices: null,
+    links: null,
+    nodes: null,
     // todo: add (*) support for inEdges, outEdges, neighbours.
-    nextEdge: function(stub, name) {
+    nextLink: function(stub, name) {
       var query = {_from: stub};
       if (name !== '.') query.name = name;
       // collection is faster than graph
-      return this.edges.firstExample(query);
+      return this.links.firstExample(query);
     },
 
-    prevEdge: function(stub, name) {
+    prevLink: function(stub, name) {
       var query = {_to: stub};
       if (name !== '.') query.name = name;
-      return this.edges.firstExample(query);
+      return this.links.firstExample(query);
     },
 
     // "." anonymous, any; ".." in neighbor
     // stub+path as: /nodes/root/a/b/./c/../d/../../e/././f
-    leafEdge: function(stub, path) {
-      var i, to, edge,
+    lastLink: function(stub, path) {
+      var i, to, link,
           backward = false,
           next = stub;
-      for (i = 0; i < path.length && next; i++) {
+      for (i = 0; path && i < path.length && next; i++) {
         if (backward) {
           if (path[i] === '..') {  // "../../xxx" => ".././../xxx"
-            edge = this.prevEdge(next, '.');
-            next = edge._from;
+            link = this.prevLink(next, '.');
+            next = link._from;
           } else {
-            edge = this.prevEdge(next, path[i]);
-            next = edge._from;
+            link = this.prevlink(next, path[i]);
+            next = link._from;
             backward = false;
           }
         } else if (path[i] === '..') {
           backward = true;
         } else {
-          edge = this.nextEdge(next, path[i]);
-          next = edge._to;
+          link = this.nextLink(next, path[i]);
+          next = link._to;
         }
       }
-      return edge;
-    }
-    
+      return link;
+    },
+
+    // sigh: it is more simply beautiful ref = '.' than type = '_self'.
+    //       But ref is designed as unique index.
     // get original data.
-    getSource: function(model) {
+    getSource: function(model, selection) {
+      var result;
       switch (model.get('type')) {  // support only two types.
-      case '.':     // store simple data in the graph node.
-        return model.get('data');
+      case '_self':     // store simple data in the graph node.
+        result = model.get('data');
+        break;
       default:         // store data in other collection by reference.
-        return Db._document(model.get('ref'));
+        result = Db._document(model.get('ref'));
       }
+      if (selection)
+        return _.pick(result, selection);
+      return result;
     },
 
     // update source data.
@@ -95,6 +105,31 @@
 
   });
 
-  exports.Graph = Graph;
+  var initGraph = function(context) {
+    var G, g,
+        Nodes = context.collection('nodes');
+    
+    if (!Nodes)
+      return null;
+
+    g = Gg._graph(context.collectionName('graph'));
+    G = new Graph(Nodes, {model: Model.Nodes, graph: g});
+    G.nodes = g[Nodes.name()];
+    G.links = g[context.collectionName('links')];
+    G.collection = G.nodes;
+
+    G.nodesName = G.nodes.name;
+    G.nodeSave = G.nodes.save;
+    G.nodeUpdate = G.nodes.update;
+    G.nodeRemove = G.nodes.remove;
+    G.linksName = G.links.name;
+    G.linkSave = G.links.save;
+    G.linkUpdate = G.links.update;
+    G.linkRemove = G.links.remove;
+    
+    return G;
+  }
+
+  exports.initGraph = initGraph;
 }());
 
