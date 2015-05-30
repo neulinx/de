@@ -24,7 +24,7 @@
         description: 'Identity, name or key.'
       },
       DataParam = {
-        type: Joi.object(),
+        type: Joi.any(),
         required: true,
         description: 'Any type of data'
       },
@@ -134,12 +134,12 @@
                                      ).bodyParam('data', DataParam);
 
   // The backdoor for raw data operation of edge and vertex.
-  Controller.post(API('/g/.'), function(req, res) {
+  Controller.post(API('/g/._'), function(req, res) {
     var n = req.params('node');
     res.json(G.save(n).forClient());
   }).bodyParam('node', NodeParam);
   
-  Controller.post(API('/g/..'), function(req, res) {
+  Controller.post(API('/g/.._'), function(req, res) {
     var e = req.params('link').forDB();
     var d = {name: e.name};
     if (e._key) d._key = e._key;
@@ -154,7 +154,8 @@
       var node = G.byId(stub);
       if (selection === '.')
         return res.json(node.forClient());
-      return res.json(G.getSource(node));
+      var s = selection ? selection.split(/\s*,\s*/) : null;
+      return res.json(G.getSource(node), s);
     }
                       
     var leaf = G.lastLink(stub, req.suffix);
