@@ -1,10 +1,9 @@
 (function () {
   'use strict';
-  var Foxx = require('org/arangodb/foxx'),
-      Joi = require('joi'),
-      Links, Nodes;
+  var Foxx = require('org/arangodb/foxx');
+  var Joi = require('joi');
 
-  Links = Foxx.Model.extend({
+  var Links = Foxx.Model.extend({
     schema: {
       _key: Joi.string(),
       _from: Joi.string(),
@@ -13,7 +12,7 @@
     }
   });
 
-  Nodes = Foxx.Model.extend({
+  var Nodes = Foxx.Model.extend({
     schema: {
       _id: Joi.string(),
       _key: Joi.string(),
@@ -24,7 +23,6 @@
     }
   });
 
-  
   exports.Links = Links;
   exports.Nodes = Nodes;
 }());

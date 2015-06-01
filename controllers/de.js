@@ -1,71 +1,95 @@
+/*globals require, applicationContext */
+
 (function () {
   'use strict';
-  var Version = 'v1',
-      API = function (path) {
-        return '/' + Version + path;
-      };
+  var Version = 'v1';
+  var API = function (path) {
+    return '/' + Version + path;
+  };
   
-  var Controller, G,
-      Foxx = require('org/arangodb/foxx'),
-      Joi = require('joi'),
-      ArangoError = require('org/arangodb').ArangoError,
-      Repo = require('repositories/de_graph'),
-      Model = require('models/de_graph');
-  
+  var Controller, G;
+  var Foxx = require('org/arangodb/foxx');
+  var Joi = require('joi');
+  var ArangoError = require('org/arangodb').ArangoError;
+  var Repo = require('repositories/de_graph');
+  var Model = require('models/de_graph');
+
   // Documenting and constraining parameters.
   var RootParam = {
-        type: Joi.string().allow('_uuid', '_key', '_ref'),
-        required: true,
-        description: 'Three types of stub location.'
-      },
-      KeyParam = {
-        type: Joi.string(),
-        required: true,
-        description: 'Identity, name or key.'
-      },
-      DataParam = {
-        type: Joi.any(),
-        required: true,
-        description: 'Any type of data'
-      },
-      SParam = {  // What is S? source or selection.
-        type: Joi.string().allow('.', '..', '.._'),  // '_' internal data.
-        description: 'Location of data: ".", vertex; "..", edge.'
-      },
-      CParam = {  // What is C? confirmation, create collection on demand.
-        type: Joi.string().allow('true', 'false', 'yes', 'no'),
-        description: 'Create new collection on demand, whether or no.'
-      },
-      LinkParam = {
-        type: Model.Links,
-        required: true,
-        description: 'Edge of graph data.'
-      },
-      NodeParam = {
-        type: Model.Nodes,
-        required: true,
-        description: 'Vertex of graph data.'
-      };
+    type: Joi.string().allow('_uuid', '_key', '_ref', '_path'),
+    required: true,
+    description: 'Three types of stub location.'
+  };
+  var  KeyParam = {
+    type: Joi.string(),
+    required: true,
+    description: 'Identity, name or key.'
+  };
+  var DataParam = {
+    type: Joi.any(),
+    required: true,
+    description: 'Any type of data'
+  };
+  var SParam = {  // What is S? source or selection.
+    type: Joi.string().allow('.', '..', '.._'),  // '_' internal data.
+    description: 'Location of data: ".", vertex; "..", edge.'
+  };
+  var LinkParam = {
+    type: Model.Links,
+    required: true,
+    description: 'Edge of graph data.'
+  };
+  var NodeParam = {
+    type: Model.Nodes,
+    required: true,
+    description: 'Vertex of graph data.'
+  };
 
 
   // Initialize global graph repository.
   G = Repo.initGraph(applicationContext);
-  
 
-  var getNode = function(root, key) {
-    if (root === '_uuid')
+  var getNode = function (root, key) {
+    if (root === '_uuid') {
       return G.firstExample({uuid: key}).get('_id');
+    }
     
-    if (root === '_key')
+    if (root === '_key') {
       return G.nodesName() + '/' + key;
-
-    var ref;
-    if (root === '_ref')
-      ref = key;
-    else
-      ref = root + '/' + key;
+    }
     
+    var ref = root + '/' + key;
     return G.firstExample({ref: ref}).get('_id');
+  };
+
+  var getNodeByData = function (data, stub, leaf) {
+    var key, value, link;
+
+    // get first key only!
+    key = Object.getOwnPropertyNames(data)[0];
+    value = data[key];
+
+    if (key === '_ref') {
+      return G.firstExample({ref: value}).get('_id');
+    }
+
+    if (key === '_path') {
+      var path = value.split('/');
+      switch (path[0]) {
+      case '':  // "/a/b/c"
+        var root = getNode(path[1], path[2]);
+        link = G.lastLink(root, path.slice(3));
+        break;
+      case '.':  // "./a/b/c"
+        link = G.lastLink(leaf, path.slice(1));
+        break;
+      default:  // "a/b/c"
+        link = G.lastLink(stub, path);
+      }
+      return link._to;
+    }
+      
+    return getNode(key, value);
   };
   
   // controller methods
@@ -94,25 +118,21 @@
   //   URL: /g/collection/root/branch/leaf?s=source
   //   Data: {_key:.., data...}
   //   Result: create new data item in source collection and link it.
-  Controller.post(API('/g/:root/:key/*'), function(req, res) {
-    var leaf, node, result,
-        stub = getNode(req.params('root'), req.params('key')),
-        path = req.suffix.slice(),
-        linkName = path.pop(),
-        link = G.lastLink(stub, path),
-        data = req.params('data'),
-        source = req.params('s');
+  Controller.post(API('/g/:root/:key/*'), function (req, res) {
+    var leaf, node, result;
+    var stub = getNode(req.params('root'), req.params('key'));
+    var path = req.suffix.slice();
+    var linkName = path.pop();
+    var link = G.lastLink(stub, path);
+    var data = req.params('data');
+    var source = req.params('s');
     
     leaf = link ? link._to : stub;
     
     switch (source) {
     case '..':  // create new edge to link internal nodes.
-      for (var key in data) {  // todo: support _key of edge
-        var value = data[key];
-        node = getNode(key, value);
-        result = G.linkSave(leaf, node, {name: linkName});
-        break;
-      }
+      node = getNodeByData(data, stub, leaf);
+      result = G.linkSave(leaf, node, {name: linkName});
       break;
     case undefined:  // if 's' paramter is not present...
     case null:
@@ -129,31 +149,32 @@
 
     res.json(result);
   }).pathParam('root', RootParam
-              ).pathParam('key', KeyParam
-                         ).queryParam('s', SParam
-                                     ).bodyParam('data', DataParam);
+   ).pathParam('key', KeyParam
+   ).queryParam('s', SParam
+   ).bodyParam('data', DataParam);
 
   // The backdoor for raw data operation of edge and vertex.
-  Controller.post(API('/g/._'), function(req, res) {
+  Controller.post(API('/g/._'), function (req, res) {
     var n = req.params('node');
     res.json(G.save(n).forClient());
   }).bodyParam('node', NodeParam);
   
-  Controller.post(API('/g/.._'), function(req, res) {
+  Controller.post(API('/g/.._'), function (req, res) {
     var e = req.params('link').forDB();
     var d = {name: e.name};
-    if (e._key) d._key = e._key;
+    if (e._key) { d._key = e._key; }
     res.json(G.linkSave(e._from, e._to, d));
   }).bodyParam('link', LinkParam);
   
   // Get referenced object by traversing the graph with edge labels.
-  Controller.get(API('/g/:root/:key/*'), function(req, res) {
-    var stub = getNode(req.params('root'), req.params('key')),
-        selection = req.params('s');
+  Controller.get(API('/g/:root/:key/*'), function (req, res) {
+    var stub = getNode(req.params('root'), req.params('key'));
+    var selection = req.params('s');
     if (req.suffix.length < 1) {
       var node = G.byId(stub);
-      if (selection === '.')
+      if (selection === '.') {
         return res.json(node.forClient());
+      }
       var s = selection ? selection.split(/\s*,\s*/) : null;
       return res.json(G.getSource(node), s);
     }
@@ -175,24 +196,26 @@
       break;
     default:  // pick selected attributes by "s=a,b,c".
       var re = /\s*,\s*/;  // split with ',' and trim space.
-      var s = selection.split(re);
-      res.json(G.getSource(G.byId(leaf._to), s));
+      var ss = selection.split(re);
+      res.json(G.getSource(G.byId(leaf._to), ss));
     }
   }).pathParam('root', RootParam
-              ).pathParam('key', KeyParam
-                         ).queryParam('s', SParam);
+   ).pathParam('key', KeyParam
+   ).queryParam('s', SParam);
 
   
   // update link, node or data.
-  Controller.put(API('/g/:root/:key/*'), function(req, res) {
-    var node, result, leaf,
-        stub = getNode(req.params('root'), req.params('key')),
-        data = req.params('data'),
-        source = req.params('s');
+  Controller.put(API('/g/:root/:key/*'), function (req, res) {
+    var node, result, leaf;
+    var stub = getNode(req.params('root'), req.params('key'));
+    var data = req.params('data');
+    var source = req.params('s');
+    
     // update stub node directly.
     if (req.suffix.length < 1) {
-      if (source === '.')
+      if (source === '.') {
         return res.json(G.nodeUpdate(stub, data));
+      }
       node = G.byId(stub);
       return res.json(G.updateSource(node, data));
     }
@@ -202,9 +225,6 @@
     case '..':  // update edge name only
       result = G.linkUpdate(leaf._id, data);
       break;
-//    case '.._':  // update raw data of edge: {name: newName, _to: newEnd}.
-//      result = G.linkUpdate(leaf._id, data);
-//      break;
     case '.':  // update '_to' node of the edge.
       result = G.nodeUpdate(leaf._to, data);
       break;
@@ -216,16 +236,17 @@
 
     res.json(result);
   }).pathParam('root', RootParam
-              ).pathParam('key', KeyParam
-                         ).queryParam('s', SParam
-                                     ).bodyParam('data', DataParam);
+   ).pathParam('key', KeyParam
+   ).queryParam('s', SParam
+   ).bodyParam('data', DataParam);
 
 
   // delete link, node or data.
-  Controller.del(API('/g/:root/:key/*'), function(req, res) {
-    var node, result, leaf,
-        stub = getNode(req.params('root'), req.params('key')),
-        source = req.params('s');
+  Controller.del(API('/g/:root/:key/*'), function (req, res) {
+    var node, result, leaf;
+    var stub = getNode(req.params('root'), req.params('key'));
+    var source = req.params('s');
+    
     if (req.suffix.length < 1) {
       if (source === '.') {
         result = G.nodeRemove(stub);
@@ -251,8 +272,7 @@
 
     res.json({success: result});
   }).pathParam('root', RootParam
-              ).pathParam('key', KeyParam
-                         ).queryParam('s', SParam);
+   ).pathParam('key', KeyParam
+   ).queryParam('s', SParam);
   
-
 }());

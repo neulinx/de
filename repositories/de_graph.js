@@ -1,11 +1,11 @@
 (function () {
   'use strict';
 
-  var _ = require('underscore'),
-      Foxx = require('org/arangodb/foxx'),
-      Db = require("org/arangodb").db,
-      Gg = require('org/arangodb/general-graph'),
-      Model = require('models/de_graph');
+  var _ = require('underscore');
+  var Foxx = require('org/arangodb/foxx');
+  var Db = require("org/arangodb").db;
+  var Gg = require('org/arangodb/general-graph');
+  var Model = require('models/de_graph');
 
   
   // graph with model of Nodes.
@@ -91,7 +91,6 @@
       return this.remove(model);
     },
     
-    
     // new source data.
     newData: function(collName, newData) {
       if (collName === '_self') {
@@ -128,7 +127,7 @@
     G.linkRemove = G.links.remove;
     
     return G;
-  }
+  };
 
   exports.initGraph = initGraph;
 }());
