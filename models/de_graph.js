@@ -8,7 +8,7 @@
       _key: Joi.string(),
       _from: Joi.string(),
       _to: Joi.string(),
-      name: Joi.string() 
+      name: Joi.string()
     }
   });
 
@@ -22,7 +22,6 @@
       data: Joi.any()
     }
   });
-
   exports.Links = Links;
   exports.Nodes = Nodes;
 }());

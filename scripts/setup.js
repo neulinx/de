@@ -1,20 +1,20 @@
 (function () {
   'use strict';
 
-  var Console = require('console'),
-      Gg = require('org/arangodb/general-graph');
+  var Console = require('console');
+  var Gg = require('org/arangodb/general-graph');
   
   var createGraph = function(graph) {
-    var g_name = applicationContext.collectionName(graph),
-        v_name = applicationContext.collectionName('nodes'),
-        e_name = applicationContext.collectionName('links'),
-        existence = Gg._exists(g_name);
+    var g_name = applicationContext.collectionName(graph);
+    var v_name = applicationContext.collectionName('nodes');
+    var e_name = applicationContext.collectionName('links');
+    var existence = Gg._exists(g_name);
     
     if (existence) {
       Console.warn('graph "%s" already exists. Leaving it untouched.', g_name);
       return;
     }
-    
+
     // create graph
     var g = Gg._create(g_name, [Gg._relation(e_name, v_name, v_name)], []);
     // create index

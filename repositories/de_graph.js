@@ -7,7 +7,6 @@
   var Gg = require('org/arangodb/general-graph');
   var Model = require('models/de_graph');
 
-  
   // graph with model of Nodes.
   var Graph = Foxx.Repository.extend({
     links: null,
@@ -105,8 +104,8 @@
   });
 
   var initGraph = function(context) {
-    var G, g,
-        Nodes = context.collection('nodes');
+    var G, g;
+    var Nodes = context.collection('nodes');
     
     if (!Nodes)
       return null;

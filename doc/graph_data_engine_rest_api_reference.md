@@ -10,14 +10,15 @@
 
 DE REST API 中 URL 模板如下：
 
-`http://主机信息/_db/数据库名/API信息`
+`http://主机信息/_db/数据库名/*挂载路径/*API信息`
 
-- 在默认安装的开发环境下，主机信息通常是: `localhost:8529`
-- 默认数据库为: `_system`
+* 在默认安装的开发环境下，主机信息通常是: `localhost:8529`
+* 默认数据库为: `_system`
+* 其中`*挂载路径`也就是虚拟路径，安装*DataEngine Application*时的*mount path*。
 
 其中 API 信息部分又采用如下格式模板：
 
-`/版本号/API大类/调用信息`
+`/版本号/API大类/*调用信息`
 
 对于当前版本的Graph大类 API，具体的 URL 模板为：
 
@@ -118,11 +119,16 @@ arangodb foxx框架中主要采用 [joi](https://github.com/hapijs/joi/blob/mast
     * ` {"_key": Key, "ref": Ref, "type": Type, "uuid": UUID, "data": Data}`
 * **link**数据对象：这个数据对象不采用**link**内部的数据结构，而是采用`{type: Key}`格式，具体有如下几种形式：
     * `{"_uuid": UUID}`: 被连接节点的UUID值。
-    * `{"_key": Key}`: 被连接节点的**document key**
+    * `{"_key": Key}`: 被连接节点的**document key**。
     * `{"_ref": "Collection/Key"}`: 被连接节点的外部引用数据对象的**document-handle**。
+    * `{"_path": Path}`: 被连接节点可以是当前Graph的绝对路径或者相对路径。
+        * *Path =* `/:root/:key/*path`: 绝对路径寻址，与上述 *URL* 路径寻址说明相同。
+        * *Path =* `a/b/c`: 以当前*URL*的`:root/:key`为起点的相对路径寻址，等效于`/:root/:key/a/b/c`
+        * *Path =* `./a/b/c`: 以当前节点的`:root/:key/*path`为起点的相对路径寻址，等效于`/:root/:key/*path/a/b/c`      
 * 特殊格式**“`POST /v1/g/.._`”**下**link**数据对象则采用内部数据结构，即：
     * `{"_key": Key, "_from": From, "_to": To, "name": Name}`
-    
+* 特殊格式**“`POST /v1/g/._`”**下独立**节点**数据对象则采用内部数据结构，即上述**node**数据对象格式。
+
 ### 返回值
 
 * 200：正确创建数据对象，并返回摘要信息。如：
@@ -169,7 +175,7 @@ arangodb foxx框架中主要采用 [joi](https://github.com/hapijs/joi/blob/mast
 ## HTTP DELETE: 删除数据
 
 ### Header格式
-`PUT /v1/g/:root/:key/*path?s=source`
+`DELETE /v1/g/:root/:key/*path?s=source`
 
 * `v1`: 版本号 version 1.0
 * `g`：类别 Graph
