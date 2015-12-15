@@ -2,13 +2,14 @@
   "name": "de",
   "description": "Data Engine for Graph Model.",
   "author": "Gary Hai",
-  "version": "0.0.1",
-  "license": "Apache 2",
-  "isSystem": false,
+  "version": "1.2.0",
+  "license": "MIT",
   "contributors": [],
   "controllers": {
     "/": "controllers/de.js"    
   },
-  "setup": "scripts/setup.js",
-  "teardown": "scripts/teardown.js"
+  "scripts": {
+    "setup": "scripts/setup.js",
+    "teardown": "scripts/teardown.js"
+  }
 }
