@@ -45,7 +45,10 @@ const NodeParam = {
 
 
 // Initialize global graph repository.
-const G = new Repo.Graph(applicationContext);
+let G;
+if (applicationContext.collection('nodes')) {
+  G = new Repo.Graph(applicationContext);
+}
 
 function getNode(root, key) {
   if (root === '_uuid') {
