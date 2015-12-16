@@ -1,6 +1,4 @@
-(function () {
-  'use strict';
-  var db = require("org/arangodb").db;
-
-  
-}());
+/*
+'use strict';
+const db = require("org/arangodb").db;  
+*/
