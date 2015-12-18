@@ -37,7 +37,7 @@ DE REST API 中 URL 模板如下：
 	* `s=collectionName`，指定数据源名称是某个collection。通常用于在指定数据源中创建新的数据。
 	* `s=selection`，用于HTTP GET中选择性的获取数据而不是对象全部的数据。例如某个数据对象有大量的字段，我们只要求返回name, age, sex三个字段信息，参数为：`s=name,age,sex`。注意字段间用“,”分隔。
 	
-### 	HTTP Body数据格式
+### HTTP Body数据格式
 
 格式统一起见，DE REST API中body统一采用JSON数据格式，即HTTP `Content-Type: application/json`。API中需要body内容的HTTP Method有两个：POST和PUT。
 
