@@ -314,3 +314,48 @@ DataEngine设计中并不限定原始数据对象的来源，可以来自于传�
 | {"ref":"docs/254331619790"} | 254331816398 |
 | {"ref":"customer/123456789012345"} | 257869646286 |
 
+## 网页模板的渲染测试
+
+为了方便，使用arangodb的图形界面在 collections 中找到 docs/254331619790, 添加一个`_template`字段，填写如下内容：
+
+```
+<html>
+  <head>
+    <title>Hello {{model}}</title>
+  </head>
+  <body>
+    <p>第一层：产品名称: {{name}}, 产品型号: {{model}}</p>
+    <p>第二层：{{#locate "./用户"}}买家是{{last_name}}{{first_name}}{{/locate}}</p>
+    <p>第三层：{{#locate "./料单/说明书"}}说明书下载地址：{{uri}}{{/locate}}</p>
+    <p>嵌套：
+      {{#locate "./料单"}}access key:{{access_key}}
+        {{#locate "./说明书"}} 说明书类型:{{type}}{{/locate}}
+      {{/locate}}
+    </p>
+    <p>直接访问说明书类型数据：{{locate "料单/说明书" "type"}} </p>
+    <p>直接访问产品用户的手机号码：{{locate "/_key/neulinx/二维码/n2kGLetH/产品/用户" "phone"}} </p>
+  </body>
+</html>
+```
+
+通过HTTP GET访问 http://localhost:8529/test/de/v1/g/_key/neulinx/二维码/n2kGLetH/产品?r=/docs/254331619790
+
+渲染后的数据为：
+```
+<html>
+  <head>
+    <title>Hello TL123</title>
+  </head>
+  <body>
+    <p>第一层：产品名称: 量子点电视, 产品型号: TL123</p>
+    <p>第二层：买家是张三丰</p>
+    <p>第三层：说明书下载地址：file:///var/docs/manual/1235</p>
+    <p>嵌套：
+      access key:45a6b7d
+         说明书类型:images
+    </p>
+    <p>直接访问说明书类型数据：images </p>
+    <p>直接访问产品用户的手机号码：123 </p>
+  </body>
+</html>
+```

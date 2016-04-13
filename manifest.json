@@ -1,15 +1,19 @@
 {
   "name": "de",
-  "description": "Data Engine for Graph Model.",
+  "description": "Data Engine of Neulinx Web Platform.",
+  "engines": {
+    "arangodb": "^2.8.0"
+  },
   "author": "Gary Hai",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "license": "MIT",
   "contributors": [],
   "controllers": {
-    "/": "controllers/de.js"    
+    "/": "lib/de.js"    
   },
   "scripts": {
-    "setup": "scripts/setup.js",
-    "teardown": "scripts/teardown.js"
-  }
+    "setup": "lib/setup.js",
+    "teardown": "lib/teardown.js"
+  },
+  "tests": "test/**/*.js"
 }

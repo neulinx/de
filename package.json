@@ -1,0 +1,48 @@
+{
+  "name": "de",
+  "version": "1.4.0",
+  "description": "Data Engine of Neulinx Web Platform.",
+  "files": [
+    "lib/",
+    "test/",
+    "package.json",
+    "README.md",
+    "manifest.json",
+    "LICENSE"
+  ],
+  "babel": {
+    "plugins": [
+      "transform-strict-mode",
+      "transform-object-assign"
+    ]
+  },
+  "bundledDependencies": [
+    "handlebars"
+  ],
+  "dependencies": {
+    "handlebars": "^4.0.5"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.6.5",
+    "babel-plugin-transform-object-assign": "^6.5.0",
+    "babel-plugin-transform-strict-mode": "^6.6.5"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "compile": "babel --compact false es -d lib",
+    "release": "babel --compact true es -d lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@bitbucket.org/gary.hai/develop.git"
+  },
+  "keywords": [
+    "graph",
+    "arangodb",
+    "foxx",
+    "actor model"
+  ],
+  "author": "Gary Hai",
+  "license": "MIT",
+  "homepage": "https://bitbucket.org/gary.hai/develop#readme"
+}

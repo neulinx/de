@@ -1,0 +1,5 @@
+target
+*.bk
+node_modules
+.vagrant
+de-*.tgz
