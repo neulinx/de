@@ -1,6 +1,6 @@
 {
   "name": "de",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Data Engine of Neulinx Web Platform.",
   "files": [
     "lib/",

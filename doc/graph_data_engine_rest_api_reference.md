@@ -110,10 +110,10 @@ arangodb foxx框架中主要采用 [joi](https://github.com/hapijs/joi/blob/mast
     * `{"error":"The route is not viable."}`
 * 渲染后的数据按照指定或默认的 `Content-Type` 在Body中返回。
 
-## HTTP POST: 创建数据
+## HTTP POST: 创建数据或渲染
 
 ### Header格式
-`POST /v1/g/:root/:key/*path/leaf?s=source`
+`POST /v1/g/:root/:key/*path/leaf?s=source&r=content_type`
 
 * `v1`: 版本号 version 1.0
 * `g`：类别 Graph
@@ -129,6 +129,8 @@ arangodb foxx框架中主要采用 [joi](https://github.com/hapijs/joi/blob/mast
   * `s=.`: 使用**body**数据创建新的**node**，同时创建以**`leaf`**为名字的**Link**，从**`*path`**指向的节点连接新建的节点。注：此参数不创建外部数据，但可以创建**`type="_self"`**的内部数据：**`data=内部数据`**。
   * `s=..`: 创建以当前**`*path`**为起始节点、以**body**参数中指向的节点为终结点、以**leaf**为名称的链接。这种情况下只会创建链接，而不会创建节点和原始数据。
   * `s=collection`：这种情况下会使用**body**中的数据，在外部**collection**中创建数据对象，同时创建一个指向该新建数据对象的**node**，并创建一个从**`*path`**节点指向新的**node**的名称为**leaf**的链接。
+* `r=content_type`: 对Body中的内容进行渲染，并按照指定的格式返回。
+  * r没有赋值时，采用默认的“Content-Type”返回数据，默认"text/html"。
 * 特殊格式：下面的操作直接针对DataEngine底层数据操作，通常不推荐。执行时会严格检查数据对象是否与Links、Nodes的定义一致。
   * **“`POST /v1/g/._`”**：使用**body**数据直接创建新的节点。新节点可以在内部存放数据，也可以指向外部数据。本操作不会创建Link和外部数据。
   * **“`POST /v1/g/.._`”**：使用**body**数据直接创建新的链接，创建过程不产生新的节点和外部数据。
@@ -223,10 +225,7 @@ arangodb foxx框架中主要采用 [joi](https://github.com/hapijs/joi/blob/mast
 ## 数据渲染
 当前版本的数据引擎支持基于 [Handlebars](http://handlebarsjs.com)模板的数据渲染，并在其中扩展了一个名为`locate`的块指令。
 
-用于数据渲染的模板要求存储在同数据库中任意可被访问位置的document中。当前版本要求该document至少包含一个`_template`字段存储模板，还可以包含一个`_contentType`的字段指定渲染后数据的内容格式，用于HTTP 'content-type'字段。
-
-参考上述HTTP GET中render参数的描述。GET获取数据时，可以在指定模板上进行数据渲染，该数据模板的context数据即为GET所指向的资源节点。当`r`参数没有赋值时，默认当前数据对象中包含模板相关数据字段。`r`参数可以携带模板存储路径信息，具体格式参考HTTP GET相关描述。
-
+### 模板格式
 模板中的格式参考Handlebars文档，可以按照Handlebars定义的格式以当前数据节点为context进行数据访问操作。同时数据引擎扩展了一个`locate`命令，该命令的参数为上述`path`格式的路径信息，进行绝对寻址或者相对寻址。例如，假定数据引擎中存储这样一个Graph：/_key/root/a/b/c/d, 假定每一节点中包含一个代表名称的name字段，其中d节点中包含一个模板`_template`字段，其内容如下。
 
 ```
@@ -264,3 +263,18 @@ arangodb foxx框架中主要采用 [joi](https://github.com/hapijs/joi/blob/mast
   </body>
 </html>
 ```
+
+### 后端渲染
+
+用于数据渲染的模板要求存储在同数据库中任意可被访问位置的document中。当前版本要求该document至少包含一个`_template`字段存储模板，还可以包含一个`_contentType`的字段指定渲染后数据的内容格式，用于HTTP 'content-type'字段。
+
+参考上述HTTP GET中render参数的描述。GET获取数据时，可以在指定模板上进行数据渲染，该数据模板的context数据即为GET所指向的资源节点。当`r`参数没有赋值时，默认当前数据对象中包含模板相关数据字段。`r`参数可以携带模板存储路径信息，具体格式参考HTTP GET相关描述。
+
+### 前端渲染
+前端WEB应用也可以把复杂的数据访问以模板方式推送到后端，由后端进行渲染后一次性返回所有的数据访问结果。这个数据推送操作采用HTTP POST方式，详见前面的内容。以 curl 举例：
+
+`curl -d "root的名字：{{name}}, c的名字：{{locate "a/b/c" "name"}}" http://host:port/mount/v1/g/_key/root?r`
+
+返回：
+`root的名字：root_name, c的名字：c_name`
+
