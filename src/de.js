@@ -10,9 +10,9 @@ const _joi = require('joi');
 const _arangoError = require('org/arangodb')._arangoError;
 const _repo = require('../lib/de_graph');
 const _model = require('../lib/de_models');
+const _handlebars = require('../lib/handlebars');
 
 const _log = require('console').warn;
-const _handlebars = require('handlebars');
 
 // Documenting and constraining parameters.
 const RootParam = {

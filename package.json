@@ -1,14 +1,12 @@
 {
   "name": "de",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Data Engine of Neulinx Web Platform.",
   "files": [
-    "lib/",
-    "test/",
+    "foxx/",
     "package.json",
     "README.md",
-    "manifest.json",
-    "LICENSE"
+    "Makefile"
   ],
   "babel": {
     "plugins": [
@@ -29,20 +27,21 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "compile": "babel --compact false es -d lib",
-    "release": "babel --compact true es -d lib"
+    "compile": "babel --compact false src -d foxx/lib",
+    "release": "babel --compact true src -d foxx/lib"
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@bitbucket.org/gary.hai/develop.git"
+    "url": "https://github.com/neulinx/de.git"
   },
   "keywords": [
     "graph",
     "arangodb",
     "foxx",
+    "template",
     "actor model"
   ],
   "author": "Gary Hai",
   "license": "MIT",
-  "homepage": "https://bitbucket.org/gary.hai/develop#readme"
+  "homepage": "https://github.com/neulinx/de/wiki"
 }

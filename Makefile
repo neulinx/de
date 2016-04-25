@@ -1,6 +1,6 @@
 PKG_NAME = de
 TARGET = /test/de
-SOURCE = .
+SOURCE = foxx
 
 default: develop
 
@@ -30,6 +30,7 @@ uninstall:
 	foxx-manager uninstall $(TARGET)
 
 clean:
-	@rm lib/*.js
+	@rm -rf node_modules
+
 
 .PHONY: install upgrade replace uninstall release default depends compile clean pack
