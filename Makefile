@@ -15,6 +15,7 @@ pack: release
 
 develop: compile
 	foxx-manager upgrade $(SOURCE) $(TARGET)
+	foxx-manager development $(TARGET)
 
 upgrade: release
 	foxx-manager upgrade $(SOURCE) $(TARGET)

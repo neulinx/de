@@ -11,7 +11,7 @@ const _arangoError = require('org/arangodb')._arangoError;
 const _repo = require('../lib/de_graph');
 const _model = require('../lib/de_models');
 
-const _log = require('console').log;
+const _log = require('console').warn;
 const _handlebars = require('handlebars');
 
 // Documenting and constraining parameters.
@@ -70,7 +70,7 @@ function getNode(root, key) {
 };
 
 function getNodeByData(data, stub, leaf) {
-  if (data._ref) {
+  if (data._ref || data._file) {
     return G.firstExample({ ref: data._ref}).get('_id');
   }
 
@@ -85,7 +85,7 @@ function getNodeByData(data, stub, leaf) {
   if (data._key) {
     return G.nodesName() + '/' + data._key;
   }
-
+  
   throw new Error('Unknown data format.');
 }
 
@@ -103,8 +103,11 @@ function getNodeByPath(location, root, leaf) {
         }
         link = G.lastLink(root, path.slice(3));
         break;
-      case '.':  // "./a/b/c"
+      case '.':  // "./a/b/c" or "../c/d", count from leaf, not root
         link = G.lastLink(leaf, path.slice(1));
+        break;
+      case '..':
+        link = G.lastLink(leaf, path);
         break;
       default:  // "a/b/c"
         link = G.lastLink(root, path);
@@ -116,17 +119,30 @@ function getNodeByPath(location, root, leaf) {
 function render(res, path, leaf, root) {
   let data = G.getSource(leaf);
   data._gid = leaf.split('/')[1];
-  let tplNode = data;
+  let template, type;
   if (path) {
-    tplNode = G.getSource(getNodeByPath(path, root, leaf));
+    let scheme = 'file://';
+    if (path.startsWith(scheme)) {
+      template = G.fileRead(path.substr(scheme.length));
+    } else {
+      let tplNode = G.getSource(getNodeByPath(path, root, leaf));
+      if (typeof tplNode === 'object') {
+        type = tplNode._contentType;
+        template = tplNode._template;
+      } else {
+        template = tplNode;
+      }
+    }
+  } else {
+    type = data._contentType;
+    template = data._template;
   }
-  let ct = tplNode._contentType;
-  let tpl = _handlebars.compile(tplNode._template);
-  let output = tpl(data);
-  if (ct) {
-    res.set("Content-Type", ct);
+  let tpl = _handlebars.compile(template);
+  let content = tpl(data);
+  if (type) {
+    res.set("Content-Type", type);
   }
-  return res.send(output);
+  return res.send(content);
 }
 
 _handlebars.registerHelper('locate', function(){
@@ -158,12 +174,14 @@ const Controller = new _foxx.Controller(applicationContext);
 
 // Fail-fast and avoid defensive programming.
 // In development phase, produce detailed error description.
+/*
 if (applicationContext.isProduction) {
   Controller.allRoutes.errorResponse(_arangoError, 404,
     'The route is not viable.');
   Controller.allRoutes.errorResponse(TypeError, 404,
     'The route is not viable.');
 }
+*/
 
 // Erlang way, :), pattern match.
 // Create orinal data, referee, and link
@@ -184,8 +202,9 @@ if (applicationContext.isProduction) {
 //   Data: text of handlerbars template.
 //   Result: compile the template and render with the node.
 Controller.post(API('/g/:root/:key/*'), function (req, res) {
-  let leaf, node, result;
+  let leaf, result, node = {};
   const stub = getNode(req.params('root'), req.params('key'));
+  const data = req.rawBody();
   const rt = req.params('r');
   if (rt !== void 0) {
     if (req.suffix.length < 1) {
@@ -193,7 +212,7 @@ Controller.post(API('/g/:root/:key/*'), function (req, res) {
     } else {
       leaf = G.lastLink(stub, req.suffix)._to;
     }
-    const tpl = _handlebars.compile(req.rawBody());
+    const tpl = _handlebars.compile(data);
     const output = tpl(G.forClient(leaf));
     if (rt) {
       res.set("Content-Type", rt);
@@ -204,27 +223,39 @@ Controller.post(API('/g/:root/:key/*'), function (req, res) {
   const linkName = path.pop();
   const link = G.lastLink(stub, path);
   const source = req.params('s');
-  const data = req.body();
   leaf = link ? link._to : stub;
   
   switch (source) {
     case '..':  // create new edge to link internal nodes.
-      node = getNodeByData(data, stub, leaf);
-      result = G.linkSave(leaf, node, { name: linkName });
+      node._id = getNodeByData(req.body(), stub, leaf);
+      break;
+    case '.':  // create new edge and new '_to' node.
+      node = G.nodeSave(req.body());
       break;
     case undefined:  // if 's' paramter is not present...
     case null:
-    case '.':  // create new edge and new '_to' node.
-      node = G.nodeSave(data);
-      result = G.linkSave(leaf, node._id, { name: linkName });
+    case '_solo':
+      node = G.newSource('_solo', data);
       break;
+    
     default:  // create new data object in source collection and link it.
-      result = G.newData(source, data);
-      // todo: add more parameters to cutomize node.
-      node = G.nodeSave({ ref: result._id });
-      result = G.linkSave(leaf, node._id, { name: linkName });
+      // todo: remove type attribute, ref has scheme part as uri format.
+      let scheme = 'file://';
+      // File uri: file://host/path, or file:///path without host part.
+      // For security reasons, do not support modification in production mode.
+      if (source.startsWith(scheme)) {
+        let filePath = source.substr(scheme.length);
+        G.fileCreate(filePath, data);
+        // create new node.
+        node = G.nodeSave({type: '_file', ref: filePath});
+      } else {
+        result = G.newSource(source, data);
+        node = G.nodeSave({ type: '_local', ref: result._id });
+      }
+      break;
   }
-
+  // Link the new node as new leaf to the old leaf.
+  result = G.linkSave(leaf, node._id, { name: linkName });
   res.json(result);
 }).pathParam('root', RootParam
  ).pathParam('key', KeyParam
@@ -299,13 +330,13 @@ Controller.get(API('/g/:root/:key/*'), function (req, res) {
 Controller.put(API('/g/:root/:key/*'), function (req, res) {
   let result, leaf;
   const stub = getNode(req.params('root'), req.params('key'));
-  const data = req.params('data');
   const source = req.params('s');
+  const data = req.rawBody();
     
   // update stub node directly.
   if (req.suffix.length < 1) {
     if (source === '.') {
-      return res.json(G.nodeUpdate(stub, data));
+      return res.json(G.nodeUpdate(stub, req.body()));
     }
     return res.json(G.updateSource(stub, data));
   }
@@ -313,10 +344,10 @@ Controller.put(API('/g/:root/:key/*'), function (req, res) {
   leaf = G.lastLink(stub, req.suffix);
   switch (source) {
     case '..':  // update edge name only
-      result = G.linkUpdate(leaf._id, data);
+      result = G.linkUpdate(leaf._id, req.body());
       break;
     case '.':  // update '_to' node of the edge.
-      result = G.nodeUpdate(leaf._to, data);
+      result = G.nodeUpdate(leaf._to, req.body());
       break;
     default:  // update data in source collection.
       // exception: _key or _id of data must not be changed.
@@ -325,9 +356,8 @@ Controller.put(API('/g/:root/:key/*'), function (req, res) {
 
   res.json(result);
 }).pathParam('root', RootParam
-  ).pathParam('key', KeyParam
-    ).queryParam('s', SParam
-      ).bodyParam('data', DataParam);
+ ).pathParam('key', KeyParam
+ ).queryParam('s', SParam);
 
 
 // delete link, node or data.

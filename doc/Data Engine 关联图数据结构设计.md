@@ -18,11 +18,11 @@
 
 nodes表中自定义字段中的ref字段，用于存放vertex的数据源寻址信息。默认情况下，type类型是`undefined`及本地**arangodb**数据源，ref中存放的是document handler，即 "collectionName/\_key"，叶节点存放在当前arangodb数据库中；当`type`类型是`arangodb`时，`ref`中存放三段结构"databaseName/collectionName/\_key"，是在本地arangodb的不同数据库中寻址。上述两种情况下，`ref`字段保持全集唯一，可以进行反向寻址，即通过*Document Handle*查找*node*节点。
 
-当前type的可选值为`"_self", "arangodb", "rest", "file", "uri", "function", "odbc"`等等时，*数据源*数据存放在`data`字段中，而不是`ref`字段。常用的是前三种，其中`rest`类型时存放*REST*接口的*Resource URL*，`file`类型时存放本地文件路径。`uri`类型涵盖`rest`和`file`两种类型，存放数据采用*URI*格式。`function`类型是万用类型，`data`中存放函数名称和参数。`odbc`类型则存放*ODBC connection*信息和库表信息及选取条件。
+当前type的可选值为`"solo", "arangodb", "rest", "file", "uri", "function", "odbc"`等等时，*数据源*数据存放在`data`字段中，而不是`ref`字段。常用的是前三种，其中`rest`类型时存放*REST*接口的*Resource URL*，`file`类型时存放本地文件路径。`uri`类型涵盖`rest`和`file`两种类型，存放数据采用*URI*格式。`function`类型是万用类型，`data`中存放函数名称和参数。`odbc`类型则存放*ODBC connection*信息和库表信息及选取条件。
 
 nodes表中的uuid是一个可选字段，用于提供一个与DBMS无关的Key-Value快速存取方式，其中uuid采用UUID格式和定义。uuid字段可以用于nodes所指向内容的反向寻址。
 
-data是一个提供兼容性的字段，数据实体可以直接存放在nodes表中。当前设计不推荐直接在nodes表中存放最终数据。当使用本地数据而非外部数据时，type取值为"\_self"，ref的取值没有意义。
+data是一个提供兼容性的字段，数据实体可以直接存放在nodes表中。当前设计不推荐直接在nodes表中存放最终数据。当使用本地数据而非外部数据时，type取值为"\solo"，ref的取值没有意义。
 
 ## 寻址方式
 

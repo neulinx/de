@@ -1,7 +1,9 @@
 const _foxx = require('org/arangodb/foxx');
-const _db = require("org/arangodb").db;
+const _db = require('org/arangodb').db;
 const _g = require('org/arangodb/general-graph');
 const _model = require('../lib/de_models');
+const _fs = require('fs');
+const _log = require('console').warn;
 
 // graph with model of Nodes.
 class Graph extends _foxx.Repository {
@@ -14,6 +16,7 @@ class Graph extends _foxx.Repository {
     const nodes = g[nodesName];
     const links = g[linksName];
 
+    this.context = context;
     this.graph = g;
     this.collection = nodes;
     this.nodes = nodes;
@@ -26,6 +29,57 @@ class Graph extends _foxx.Repository {
     this.linkSave = links.save;
     this.linkUpdate = links.update;
     this.linkRemove = links.remove;
+
+    let dataPath = context.manifest.files.data || 'data';
+    this.dataPath = context.path(dataPath);
+  }
+  
+  validatePath(path) {
+    if (path.charAt(0) !== '/' || path.includes('/..')) {
+      throw new Error('Invalid path or file name.');
+    }
+    return this.dataPath + path;
+  }
+  
+  fileRead(path) {
+    return _fs.read(this.validatePath(path));
+  }
+
+  fileExists(path) {
+    return _fs.isFile(this.validatePath(path));
+  }
+  
+  fileUpdate(path, content) {
+    if (this.context.isProduction) {
+      throw new Error('File cannot be changed in production mode.');
+    }
+    path = this.validatePath(path);
+    if (!_fs.isFile(path)) {
+      throw new Error('File is not existed.');      
+    }
+    return _fs.write(path, content);
+  }
+  
+  fileCreate(path, content) {
+    if (this.context.isProduction) {
+      throw new Error('File cannot be created in production mode.');
+    }
+    path = this.validatePath(path);
+    if (_fs.isFile(path)) {
+      throw new Error('File is already existed.');      
+    }
+    return _fs.write(path, content);
+  }
+  
+  fileDelete(path) {
+    if (this.context.isProduction) {
+      throw new Error('File cannot be deleted in production mode.');
+    }
+    path = this.validatePath(path);
+    if (!_fs.isFile(path)) {
+      throw new Error('File is not existed.')
+    }
+    return _fs.remove(path);
   }
   
   // todo: add (*) support for inEdges, outEdges, neighbours.
@@ -52,7 +106,7 @@ class Graph extends _foxx.Repository {
           link = this.prevLink(next, '.');
           next = link._from;
         } else {
-          link = this.prevlink(next, path[i]);
+          link = this.prevLink(next, path[i]);
           next = link._from;
           backward = false;
         }
@@ -96,7 +150,7 @@ class Graph extends _foxx.Repository {
     return s;
   }
   
-  // sigh: it is more simply beautiful ref = '.' than type = '_self'.
+  // sigh: it is more simply beautiful ref = '.' than type = '_solo'.
   //       But ref is designed as unique index.
   // get original data.
   getSource(model) {
@@ -105,8 +159,10 @@ class Graph extends _foxx.Repository {
     }
 
     switch (model.get('type')) {  // support only two types.
-      case '_self':     // store simple data in the graph node.
+      case '_solo':     // store simple data in the graph node.
         return model.get('data');
+      case '_file':
+         return this.fileRead(model.get('ref'));
       default:         // store data in other collection by reference.
         return _db._document(model.get('ref'));
     }
@@ -119,8 +175,9 @@ class Graph extends _foxx.Repository {
     }
     
     switch (model.get('type')) {
-      case '_self':
+      case '_solo':
         let data = model.get('data');
+        try { newData = JSON.parse(newData); } catch (e) {};
         if (data && typeof data === 'object' &&
             newData && typeof newData === 'object') {
               Object.assign(data, newData);
@@ -129,8 +186,12 @@ class Graph extends _foxx.Repository {
           data = newData;
         }
         return this.update(model, { data: data });
+      case '_file':
+        let fileName = model.get('ref');
+        const result = this.fileUpdate(fileName, newData);  
+        return {"success": result};
       default:
-        return _db._update(model.get('ref'), newData);
+        return _db._update(model.get('ref'), JSON.parse(newData));
     }
   }
 
@@ -140,20 +201,27 @@ class Graph extends _foxx.Repository {
       model = this.byId(model);
     }
     
-    if (model.get('type') !== '_self')
+    let type = model.get('type');
+    if (type === '_file') {
+      let fileName = model.get('ref');
+      this.fileDelete(fileName);  
+    } else if (type !== '_solo') {
       _db._remove(model.get('ref'));
+    }
+    
     return this.remove(model);
   }
     
   // new source data.
-  newData(collName, newData) {
-    if (collName === '_self') {
-      const m = new this.model({ type: '_self', data: newData });
-      return this.save(m);
+  newSource(collName, data) {
+    if (collName === '_solo') {
+      try { data = JSON.parse(data) } catch(e) {};
+      const m = new this.model({ type: '_solo', data: data });
+      return this.save(m).forDB();
     }
 
     const collection = _db._collection(collName);
-    return collection.save(newData);
+    return collection.save(JSON.parse(data));
   }
 
 };

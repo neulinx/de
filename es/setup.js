@@ -26,10 +26,14 @@ const createGraph = function(graph) {
                          unique: true,
                          sparse: true,
                          fields: ['uuid']});
-  const root = {_key:"root",
-                type:"_self",
-                uuid:"2589C2DB-EAEC-4102-9412-C0896FE07FB6",
-                data:"Root of data engine graph."};
+  const root = {_key: "root",
+                type: "_solo",
+                uuid: "2589C2DB-EAEC-4102-9412-C0896FE07FB6",
+                data: {name: "root",
+                       description: "Root of data engine graph.",
+                       createTime: Date.now()
+                      }
+              };
   g[v_name].save(root);
     
 };
